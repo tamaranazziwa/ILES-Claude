@@ -117,5 +117,5 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-AUTH_USER_MODEL = 'core.CustomUser' #tells django to use the cutom user model instead of the generic one.(always set early to avoid problems with migrations)
+AUTH_USER_MODEL = 'core.CustomUser' #tells django to use the custom user model instead of the generic one.(always set early to avoid problems with migrations)
 #format-> 'appname.ModelName'

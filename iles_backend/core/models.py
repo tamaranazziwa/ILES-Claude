@@ -16,13 +16,14 @@ class CustomUser(AbstractUser): #a class that inherits from AbstractUser
 
 class InternshipPlacement(models.Model):#inherits from modles.Model, the base class for every django model.
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='placements')#ForeignKey creates a many to one relationship, delete everything when deleted, related_name lets you go back from a user to placements
+    supervisor = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='placement_supervisor') #supervisor is also a user, but with different role, related_name is different to avoid conflict.
     company_name = models.CharField(max_length=200)
     start_date = models.DateField()#stores a date
     end_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)#stores date and time
 
     def __str__(self):
-        return f"{self.student.username} at {self.company_name}"
+        return f"{self.student.username} at {self.company_name}, Supervisor- {self.supervisor.username}"
 
 
 class WeeklyLog(models.Model):

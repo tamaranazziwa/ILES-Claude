@@ -2,15 +2,18 @@ from rest_framework import serializers #import serializers module from rest_fram
 from .models import CustomUser, InternshipPlacement, WeeklyLog, EvaluationCriteria, Evaluation #import the models we created to be serialized.
 
 class UserSerializer(serializers.ModelSerializer):#modelserializer generates fields from the model.
-    class Meta:#specifies what model to serialize, which fields to include in the jsoon
+    class Meta:#specifies what model to serialize, which fields to include in the json
         model = CustomUser
         fields = ['id', 'username', 'email', 'role']#exclude password for security.
-
+        
 class PlacementSerializer(serializers.ModelSerializer):
-      class Meta:
+     class Meta:
            model = InternshipPlacement
            fields = '__all__' #include every field in the model.
-
+     def validate_supervisor(self, value):
+          if value.role != 'workplace_supervisor':#check if the user assigned as supervisor has the correct role.
+               raise serializers.ValidationError('This user is not a supervisor.')#if not, raise an error.
+          return value
 class WeeklyLogSerializer(serializers.ModelSerializer):
      class Meta:
           model = WeeklyLog
