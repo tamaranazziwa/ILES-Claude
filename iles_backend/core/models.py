@@ -1,6 +1,5 @@
 from django.contrib.auth.models import AbstractUser #built in django class with username, password...
 from django.db import models #moduls with all the known fieldtypes (CharField, DateField, ForeignKey)
-
 class CustomUser(AbstractUser): #a class that inherits from AbstractUser
     ROLE_CHOICES = [#list of tuples, (stored_value, human_value)
         ('student', 'Student Intern'),
@@ -61,4 +60,4 @@ class Evaluation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Eval by {self.evaluator.username} on {self.log}"
+        return f"Evaluation by {self.evaluator.username} on {self.log}"
