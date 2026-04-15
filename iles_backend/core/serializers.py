@@ -19,7 +19,12 @@ class WeeklyLogSerializer(serializers.ModelSerializer):
           model = WeeklyLog
           fields = '__all__'
           read_only_fields = ['submitted_at', 'created_at']#only set by django, not user input, so set to read only.
-
+     def validate_status(self, value):
+          request = self.context.get('request')
+          if request and request.method == 'POST':#status must be draft on creation
+               if value != 'draft':
+                    raise serializers.ValidationError('New logs are created as draft only.')
+          return value
 class EvaluationCriteriaSerializer(serializers.ModelSerializer):
      class Meta:
           model = EvaluationCriteria
