@@ -1,11 +1,8 @@
-from rest_framework import viewsets, permissions
-from .models import Issue
-from .serializers import IssueSerializer 
+from django.contrib import admin 
+from django.urls import path 
 
-class IssueViewSet(viewsets.ModelViewSet):
-    queryset = Issue.objects.all()
-    serializer_class = IssueSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def perform_create(self, serializer):
-        serializer.save(intern=self.request.user)
+urlpatterns = [
+    path('admin/', admin.site.urls)
+]
+
+
