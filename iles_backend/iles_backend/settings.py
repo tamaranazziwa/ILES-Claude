@@ -40,7 +40,10 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework_simplejwt',
-    'core',
+    'users',           # Custom user model and authentication
+    'placements',      # Internship placements
+    'logbook',         # Weekly logs and workflow
+    'evaluations',     # Evaluation criteria and scoring
 ]
 
 MIDDLEWARE = [
@@ -120,11 +123,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
-AUTH_USER_MODEL = 'core.CustomUser' #tells django to use the custom user model instead of the generic one.(always set early to avoid problems with migrations)
+AUTH_USER_MODEL = 'users.CustomUser' #tells django to use the custom user model instead of the generic one.(always set early to avoid problems with migrations)
 #format-> 'appname.ModelName'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",    
 ]
 
 REST_FRAMEWORK = {

@@ -16,13 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from core.token_views import CustomTokenObtainPairView
 from rest_framework_simplejwt.views import TokenRefreshView
+from users.token_views import CustomTokenObtainPairView  # import our custom view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api-auth/', include('rest_framework.urls')),
-    path('api/', include('core.urls')),#anything starting with api/ send to core/urls.py to handle
-    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),#verify credentials and return token
-    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),#new access token using valid refresh token
+    path('api/', include('users.urls')),           # /api/users/
+    path('api/', include('placements.urls')),      # /api/placements/
+    path('api/', include('logbook.urls')),         # /api/logs/
+    path('api/', include('evaluations.urls')),     # /api/criteria/ & /api/evaluations/
+    path('api-auth/', include('rest_framework.urls')),  # browsable API login
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]#refresh token is long term(used when access token expires), access token is short term(every API call)
