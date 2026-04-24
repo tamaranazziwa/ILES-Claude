@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'rest_framework',
     'Student_login'
+    'core'
     
 ]
 
