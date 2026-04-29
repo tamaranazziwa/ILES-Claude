@@ -29,6 +29,17 @@ function App() {
   }
 };
 
+  const fetchSupervisorLogs = async () => {
+    const token = localStorage.getItem('access_token');
+      if (!token) return; //not logged in, do nothing
+      try {
+        const config = { headers: {Authorization: `Bearer ${token}`}};//attach token
+        const response = await axios.get('http://127.0.0.1:8000/api/logs/', config);
+        setSupervisorLogs(response.data);//set logs for supervisor view
+      } catch(err) {
+        console.error('Failed to fetch Supervisor logs.');
+      }
+  };
   const handleCreateLog = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -44,6 +55,29 @@ function App() {
       setMessage('Error creating log.');
     }
   };
+
+  const handleSubmitLog = async(logId) => {
+    const token = localStorage.getItem('access_token');
+    try {
+      const config = {headers: {Authorization: `Bearer ${token}`}};
+      await axios.patch(`http://127.0.0.1:8000/api/logs/${logId}/`, {status: 'submitted'}, config);
+      fetchStudentData();//refresh list to see updated status
+      setMessage('Log submitted for review!');
+    } catch (err) {
+      setMessage('Error submitting log.');
+    }
+  };
+
+  const handleMarkReviewed = async (logId) => {
+    const token = localStorage.getItem('access_token');
+    try{
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.patch(`http://127.0.0.1:8000/api/logs/${logId}/`, { status: 'reviewed' }, config);
+      fetchSupervisorLogs();//refrsh logs to see updated statuses.
+    } catch (err) {
+      alert('Error updating log.');
+    }
+  };
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -53,6 +87,8 @@ function App() {
         setUser(userData);//fetch the data of the student
         if (payload.role ==='student') {
           fetchStudentData();
+        } else if (payload.role === 'workplace_supervisor' || payload.role ==='academic_supervisor') {
+          fetchSupervisorLogs();
         }
       } catch (err) {
         localStorage.removeItem('access_token');
@@ -76,7 +112,9 @@ function App() {
       setUser(userData);
       if (payload.role === 'student') {
         fetchStudentData();
-      }
+      } else if (payload.role === 'workplace_supervisor' || payload.role ==='academic_supervisor') {
+          fetchSupervisorLogs();
+        }
     } catch (err) {
       setError('Invalid username or password.');
     }
@@ -142,7 +180,9 @@ function App() {
           {logs.map((log) => (
             <li key = {log.id}>
             Week {log.week_number}: {log.activities} - <strong>{log.status}</strong>
-            /*sbmit for review button to be added*/
+            {log.status === 'draft' && (
+              <button onClick={() => handleSubmitLog(log.id)} style = {{marginLeft: '10px'}}>Submit for Review</button>
+            )}
             </li>
           ))}
           </ul>
@@ -152,6 +192,7 @@ function App() {
     }
   //Supervisor Dashboard//
   if (user.role === 'workplace_supervisor' || user.role === 'academic_supervisor') {
+    const pendingLogs = supervisorLogs.filter(log => log.status ==='submitted');
     return (
       <div style = {{ padding: '20px'}}>
         <h1>Supervisor Dashboard</h1>
@@ -163,6 +204,29 @@ function App() {
         }}>
           Logout
         </button>
+        <h2>Pending Reviews ({pendingLogs.length})</h2>
+        {pendingLogs.length === 0? (
+          <p>No logs to review.</p>
+        ) : (
+          <ul>
+            {pendingLogs.map((log) => (
+              <li key = {log.id}>
+                Week {log.week_number}: {log.activities}
+                <button onClick = {() => handleMarkReviewed(log.id)} style = {{marginLeft: '10px'}}>
+                  Mark as Reviewed
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <h2>All Logs</h2>
+        <ul>
+        {supervisorLogs.map(log => (
+          <li key = {log.id}>
+            Week {log.week_number}: {log.activities} - <strong>{log.status}</strong>
+          </li>
+        ))}
+        </ul>
       </div>
     );
   }

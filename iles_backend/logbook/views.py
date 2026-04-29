@@ -20,15 +20,12 @@ class WeeklyLogViewSet(viewsets.ModelViewSet):
         return WeeklyLog.objects.none()
 
     def get_permissions(self):
-        """
-        - Only students can CREATE logs.
-        - Only supervisors can UPDATE (PATCH/PUT) logs.
-        - Anyone authenticated can VIEW (list/retrieve) based on get_queryset.
+        """Only students can CREATE logs,Anyone authenticated can VIEW (list/retrieve) based on get_queryset.
         """
         if self.action == 'create':
             return [IsStudent()]
         elif self.action in ['update', 'partial_update']:
-            return [IsSupervisor()]
+            return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
