@@ -1,6 +1,9 @@
 import {useState, useEffect } from 'react';
 import axios from 'axios';
 // This line imports the React library and the useState hook.
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 function App() {
   // memory boxes for username, and other stuff
   const [username, setUsername] = useState('');
@@ -8,14 +11,17 @@ function App() {
   const [error, setError] = useState('');//error message
   const [user, setUser] = useState(null); //no user logged in
   const [newLog, setNewLog] = useState({ week_number: '', activities: '', placement: '' });
-  const [message, setMessage] = useState(''); // Success/error message when creating log
   const [logs, setLogs] = useState([]); //logs of all the students
   const [placements, setPlacements] = useState([]); //placements for dropdown
   const [supervisorLogs, setSupervisorLogs] = useState([]); //logs for supervisor view 
-  
+  const [feedback, setFeedback] = useState({}); //stores feedback by log id.
+
+  const get_token = () => {
+    return localStorage.getItem('access_token');
+  };
   // This function runs when the form is submitted.
   const fetchStudentData = async () => {
-  const token = localStorage.getItem('access_token');
+  const token = get_token();
   if (!token) return; //not logged in, do nothing.
   try {
     const config = { headers: { Authorization: `Bearer ${token}` }};//attach token
@@ -30,7 +36,7 @@ function App() {
 };
 
   const fetchSupervisorLogs = async () => {
-    const token = localStorage.getItem('access_token');
+    const token = get_token();
       if (!token) return; //not logged in, do nothing
       try {
         const config = { headers: {Authorization: `Bearer ${token}`}};//attach token
@@ -42,44 +48,46 @@ function App() {
   };
   const handleCreateLog = async (e) => {
     e.preventDefault();
-    setMessage('');
-    const token = localStorage.getItem('access_token');
+    const token = get_token();
     try {
       const config = {headers: { Authorization: `Bearer ${token}` }};
       await axios.post('http://127.0.0.1:8000/api/logs/', newLog, config);
       //clear the form
       setNewLog({ week_number: '', activities: '', placement: ''});
-      setMessage('Log created successfully!');
+      toast.success('Log created successfully!');
       fetchStudentData();//refresh logs to add new log
     } catch (err) {
-      setMessage('Error creating log.');
+      toast.error('Error creating log.');
     }
   };
 
   const handleSubmitLog = async(logId) => {
-    const token = localStorage.getItem('access_token');
+    const token = get_token();
     try {
       const config = {headers: {Authorization: `Bearer ${token}`}};
       await axios.patch(`http://127.0.0.1:8000/api/logs/${logId}/`, {status: 'submitted'}, config);
       fetchStudentData();//refresh list to see updated status
-      setMessage('Log submitted for review!');
+      toast.success('Log submitted for review!');
     } catch (err) {
-      setMessage('Error submitting log.');
+      toast.error('Error submitting log.');
     }
   };
-
-  const handleMarkReviewed = async (logId) => {
-    const token = localStorage.getItem('access_token');
+  const handleSupervisorAction = async (logId, newStatus, feedbackText) => {
+    const token = get_token();
     try{
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      await axios.patch(`http://127.0.0.1:8000/api/logs/${logId}/`, { status: 'reviewed' }, config);
-      fetchSupervisorLogs();//refrsh logs to see updated statuses.
+      await axios.patch(`http://127.0.0.1:8000/api/logs/${logId}/`, { 
+        status:newStatus,
+        feedback: feedbackText,
+      }, config);
+      fetchSupervisorLogs();
+      toast.success(`Log ${newStatus ==='approved' ? 'approved' : newStatus ==='draft' ? 'returned for revision' : 'updated'}!`);
     } catch (err) {
-      alert('Error updating log.');
+      toast.error('Error updating log.');
     }
   };
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
+    const token = get_token();
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));//get usernme from token
@@ -122,9 +130,11 @@ function App() {
   
   //seen on the screen if logged in.
   if(user){
-  if (user.role === 'student') {//student dashboard
+  if (user.role === 'student') {
+    //student dashboard
       return (
         <div style= {{ padding: '20px' }}>
+          <ToastContainer/>
           <h1>Student Dashboard</h1>
           <p>Welcome, {user.username}!</p>
           <button onClick={() => {
@@ -136,7 +146,6 @@ function App() {
               Logout
           </button>
           <h2>Create New Weekly Log</h2>
-          {message && <p>{message}</p>}
           <form onSubmit={handleCreateLog}>
             <div>
               <input
@@ -193,8 +202,11 @@ function App() {
   //Supervisor Dashboard//
   if (user.role === 'workplace_supervisor' || user.role === 'academic_supervisor') {
     const pendingLogs = supervisorLogs.filter(log => log.status ==='submitted');
+    const reviewedLogs = supervisorLogs.filter(log => log.status === 'reviewed');
+    
     return (
       <div style = {{ padding: '20px'}}>
+        <ToastContainer/>
         <h1>Supervisor Dashboard</h1>
         <p>Welcome, {user.username} ({user.role})!</p>
         <button onClick = {() => {
@@ -204,26 +216,54 @@ function App() {
         }}>
           Logout
         </button>
+        
         <h2>Pending Reviews ({pendingLogs.length})</h2>
-        {pendingLogs.length === 0? (
+        {pendingLogs.length === 0 ? (
           <p>No logs to review.</p>
         ) : (
           <ul>
             {pendingLogs.map((log) => (
               <li key = {log.id}>
                 Week {log.week_number}: {log.activities}
-                <button onClick = {() => handleMarkReviewed(log.id)} style = {{marginLeft: '10px'}}>
+                <button onClick = {() => handleSupervisorAction(log.id, 'reviewed', '')} style = {{marginLeft: '10px'}}>
                   Mark as Reviewed
                 </button>
               </li>
             ))}
           </ul>
         )}
+
+        <h2>Reviewed Logs ({reviewedLogs.length})</h2>
+        {reviewedLogs.length === 0 ? (
+          <p>No logs reviewed yet.</p>
+        ) : (
+          <ul>
+            {reviewedLogs.map(log => (
+              <li key = {log.id}>
+                Week {log.week_number}: {log.activities} - status: <strong>{log.status}</strong>
+              <div> 
+                <textarea placeholder= "Feedback (optional for approved, required for request changes)"
+                  value = {feedback[log.id] || ''}
+                  onChange = {(e) => setFeedback({ ...feedback, [log.id]: e.target.value})}
+                  rows = '2'
+                  style = {{width : '100%', marginTop: '5px'}}
+                />
+                <button onClick = {() => handleSupervisorAction(log.id, 'approved', feedback[log.id] || '')} style = {{marginTop: '5px'}}>
+                  Approve</button>
+                <button onClick = {() => handleSupervisorAction(log.id, 'draft', feedback[log.id] || '')}>
+                  Request Changes</button>
+              </div> 
+              </li>
+            ))}
+          </ul>
+        )}
+
         <h2>All Logs</h2>
         <ul>
         {supervisorLogs.map(log => (
           <li key = {log.id}>
             Week {log.week_number}: {log.activities} - <strong>{log.status}</strong>
+            {log.feedback && <p><em>Feedback: {log.feedback}</em></p>}
           </li>
         ))}
         </ul>
@@ -249,6 +289,7 @@ function App() {
     //show below if not logged in.
   return (
      <div style={{ padding: '20px' }}>
+      <ToastContainer/>
        <h1>Internship Login</h1>
        {error && <p style={{ color: 'red' }}>{error}</p>}
        <form onSubmit={handleSubmit}>
