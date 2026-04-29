@@ -47,16 +47,27 @@ function Dashboard() {
       )}
 
       {stats ? (
-        <div>
-          <h2>Statistics</h2>
-          <p>Total Users: {stats.totalUsers}</p>
-          <p>Total Products: {stats.totalProducts}</p>
-          <p>Active Sessions: {stats.activeSessions}</p>
-          <p>Total Orders: {stats.totalOrders}</p>
-        </div>
-      ) : (
-        <p>Loading stats...</p>
-      )}
+  <div>
+    <h2>Dashboard Overview</h2>
+
+    <p>Total Students: {stats.totalStudents}</p>
+    <p>Total Supervisors: {stats.totalSupervisors}</p>
+
+    <h3>Internship Activity</h3>
+    <p>Total Logs Submitted: {stats.totalLogs}</p>
+    <p>Approved Logs: {stats.approvedLogs}</p>
+    <p>Pending Approvals: {stats.pendingLogs}</p>
+
+    <h3>Evaluations</h3>
+    <p>Completed Evaluations: {stats.completedEvaluations}</p>
+    <p>Pending Evaluations: {stats.pendingEvaluations}</p>
+
+    <h3>Monitoring</h3>
+    <p>Inactive Students: {stats.inactiveStudents}</p>
+  </div>
+) : (
+  <p>Loading dashboard...</p>
+)}
 
       <div style={{ display: "flex", gap: "20px" }}>
         <div style={cardStyle}>
