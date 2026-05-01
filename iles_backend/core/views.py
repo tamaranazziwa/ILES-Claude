@@ -16,12 +16,6 @@ from .serializer import (
     EvaluationSerializer,
 )
 
-class InternshipPlacementViewSet(viewsets.ModelViewSet):
-    """Full CRUD for placements with role-based access (permissions added in next step)."""
-    queryset = InternshipPlacement.objects.all()
-    serializer_class = InternshipPlacementSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
 class WeeklyLogViewSet(viewsets.ModelViewSet):
     queryset = WeeklyLog.objects.all()
     serializer_class = WeeklyLogSerializer
@@ -43,3 +37,35 @@ class EvaluationViewSet(viewsets.ModelViewSet):
         evaluation = self.get_object()
         # Future weighted logic will be added here
         return Response({"message": "Score computation placeholder", "score": evaluation.score})
+    
+    
+class InternshipPlacementViewSet(viewsets.ModelViewSet):
+    """Full CRUD for Internship Placements with strict validation and RBAC."""
+    queryset = InternshipPlacement.objects.all()
+    serializer_class = InternshipPlacementSerializer
+    
+    def get_permissions(self):
+        """Role-based permissions per action."""
+        if self.action in ['create', 'list', 'retrieve']:
+            if self.request.user.role == 'student_intern':
+                return [IsStudentIntern()]
+            return [IsSupervisorOrAdmin()]
+        # Update and delete are restricted to owner or supervisor
+        return [permissions.IsAuthenticated(), IsPlacementOwnerOrSupervisor()]
+
+    @action(detail=False, methods=['get'])
+    def my_placements(self, request):
+        """Student-specific endpoint: list only their own placements."""
+        placements = InternshipPlacement.objects.filter(student=request.user)
+        serializer = self.get_serializer(placements, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def assign_supervisors(self, request, pk=None):
+        """Custom action: assign workplace and academic supervisors (admin/supervisor only)."""
+        placement = self.get_object()
+        serializer = InternshipPlacementSerializer(placement, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)

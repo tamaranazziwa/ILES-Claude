@@ -5,7 +5,7 @@ from .models import (
     EvaluationCriteria,
     Evaluation,
 )
-from accounts.models import CustomUser
+from Students_login.models import CustomUser
 
 # InternshipPlacement Serializer
 class InternshipPlacementSerializer(serializers.ModelSerializer):
@@ -109,3 +109,16 @@ class EvaluationSerializer(serializers.ModelSerializer):
         if value < 0 or value > 100:
             raise serializers.ValidationError("Score must be between 0 and 100.")
         return value
+    
+    def create(self, validated_data):
+        """Override create to ensure only one active placement per student."""
+        student = validated_data['student']
+        active = InternshipPlacement.objects.filter(
+            student=student,
+            status__in=['pending', 'active']
+        ).exists()
+        if active:
+            raise serializers.ValidationError(
+                "Student already has an active or pending placement. Complete or cancel the existing one first."
+            )
+        return super().create(validated_data)
