@@ -3,7 +3,7 @@ from rest_framework import viewsets, permissions
 from .models import EvaluationCriteria, Evaluation
 from .serializers import EvaluationCriteriaSerializer, EvaluationSerializer
 from users.permissions import IsAdmin, IsSupervisor
-
+from rest_framework.exceptions import ValidationError
 class EvaluationCriteriaViewSet(viewsets.ModelViewSet):
     queryset = EvaluationCriteria.objects.all()
     serializer_class = EvaluationCriteriaSerializer
@@ -39,5 +39,10 @@ class EvaluationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Automatically set the evaluator to the logged-in user."""
+        log = serializer.validated_data['log']
+        criteria = serializer.validated_data['criteria']
+        existing = Evaluation.objects.filter(log=log, criteria=criteria).exists()
+        if existing:
+            raise ValidationError('This log has already been evaluated on this criteria.')
         serializer.save(evaluator=self.request.user)
 # Create your views here.

@@ -15,6 +15,10 @@ function App() {
   const [placements, setPlacements] = useState([]); //placements for dropdown
   const [supervisorLogs, setSupervisorLogs] = useState([]); //logs for supervisor view 
   const [feedback, setFeedback] = useState({}); //stores feedback by log id.
+  const [editingLog, setEditingLog] = useState(null); //log beng edited after review
+  const [criteria, setCriteria] = useState([]);  // all evaluation criteria      
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminLogs, setAdminLogs] = useState([]);
 
   const get_token = () => {
     return localStorage.getItem('access_token');
@@ -40,25 +44,73 @@ function App() {
       if (!token) return; //not logged in, do nothing
       try {
         const config = { headers: {Authorization: `Bearer ${token}`}};//attach token
+        const criteriaRes = await axios.get('http://127.0.0.1:8000/api/criteria/', config);
+        setCriteria(criteriaRes.data);
         const response = await axios.get('http://127.0.0.1:8000/api/logs/', config);
         setSupervisorLogs(response.data);//set logs for supervisor view
       } catch(err) {
         console.error('Failed to fetch Supervisor logs.');
       }
   };
+
+const fetchAdminData = async () => {
+  const token = get_token();
+  if(!token) return;
+  try{
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+    const usersRes = await axios.get('http://127.0.0.1:8000/api/users/', config);
+    const logsRes = await axios.get('http://127.0.0.1:8000/api/logs/', config);
+    setAdminUsers(usersRes.data);
+    setAdminLogs(logsRes.data);
+  }catch(err) {
+    console.error('Failed to fetch admin data.');
+  }
+};
+  const saveEvaluations = async (logId) => {
+  const token = get_token();
+  const config = { headers: { Authorization: `Bearer ${token}` } };
+  
+  
+  const scores = {};
+  criteria.forEach(c => {
+    const key = `score_${logId}_${c.id}`;
+    if (feedback[key]) scores[c.id] = feedback[key];
+  });
+
+  try  {
+  const promises = Object.entries(scores).map(([criteriaId, score]) =>
+    axios.post ('http://127.0.0.1:8000/api/evaluations/', {
+      log: logId,
+      criteria: criteriaId,
+      score: parseFloat(score),
+    }, config)
+  );
+  await Promise.all(promises);
+  toast.success('Evaluations saved.');
+  fetchSupervisorLogs();
+  } catch (err) {
+    toast.error(err.response?.data?.detail ||'Error saving evaluations.');
+  }
+};
   const handleCreateLog = async (e) => {
     e.preventDefault();
     const token = get_token();
     try {
       const config = {headers: { Authorization: `Bearer ${token}` }};
-      await axios.post('http://127.0.0.1:8000/api/logs/', newLog, config);
-      //clear the form
+
+      if (editingLog) {//update existing log
+        await axios.patch(`http://127.0.0.1:8000/api/logs/${editingLog.id}/`, newLog, config);
+        toast.success('Log updated successfully! You can now resubmit.');
+      } else {//create new log
+        await axios.post('http://127.0.0.1:8000/api/logs/', newLog, config);
+        toast.success('Log created successfully! You can now submit for review.');
+      }
       setNewLog({ week_number: '', activities: '', placement: ''});
-      toast.success('Log created successfully!');
+      setEditingLog(null);
       fetchStudentData();//refresh logs to add new log
-    } catch (err) {
-      toast.error('Error creating log.');
-    }
+ } catch (err) {
+  toast.error(err.response?.data?.detail || 'Error creating log.');
+}
   };
 
   const handleSubmitLog = async(logId) => {
@@ -97,6 +149,8 @@ function App() {
           fetchStudentData();
         } else if (payload.role === 'workplace_supervisor' || payload.role ==='academic_supervisor') {
           fetchSupervisorLogs();
+        } else if (payload.role === 'admin') {
+          fetchAdminData();
         }
       } catch (err) {
         localStorage.removeItem('access_token');
@@ -122,7 +176,9 @@ function App() {
         fetchStudentData();
       } else if (payload.role === 'workplace_supervisor' || payload.role ==='academic_supervisor') {
           fetchSupervisorLogs();
-        }
+      } else if (payload.role === 'admin') {
+        fetchAdminData();
+      }
     } catch (err) {
       setError('Invalid username or password.');
     }
@@ -130,6 +186,7 @@ function App() {
   
   //seen on the screen if logged in.
   if(user){
+  //Student Dashboard
   if (user.role === 'student') {
     //student dashboard
       return (
@@ -177,7 +234,7 @@ function App() {
                 </select>
             </div>
             <br></br>
-            <button type = "submit">Submit Log</button>
+            <button type = "submit">{editingLog ? 'Update Log' : 'Submit Log'}</button>
           </form>
 
         {/*My Logs*/}
@@ -189,9 +246,25 @@ function App() {
           {logs.map((log) => (
             <li key = {log.id}>
             Week {log.week_number}: {log.activities} - <strong>{log.status}</strong>
+            {log.total_score != null && <span> | Score: {log.total_score}</span>}
             {log.status === 'draft' && (
-              <button onClick={() => handleSubmitLog(log.id)} style = {{marginLeft: '10px'}}>Submit for Review</button>
+              <div>
+                <button onClick = {() => {
+                  setEditingLog(log);
+                  setNewLog({
+                    week_number: log.week_number,
+                    activities: log.activities,
+                    placement: log.placement?.id || log.placement,
+                  });
+                }} style = {{marginLeft: '10px'}}>
+                  Edit
+                </button>
+                <button onClick = {() => handleSubmitLog(log.id)} style = {{marginLeft: '10px'}}>
+                  Submit for Review
+                </button>
+              </div>
             )}
+            {log.feedback && <p><em>Feedback: {log.feedback}</em></p>}
             </li>
           ))}
           </ul>
@@ -216,7 +289,32 @@ function App() {
         }}>
           Logout
         </button>
-        
+        {supervisorLogs.length >0 && (
+          <div style = {{
+            background : 'lightblue',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '15px'
+          }}>
+            <div><strong>Total Logs:</strong>{supervisorLogs.length}</div>
+            <div><strong>Draft:</strong>{supervisorLogs.filter(l => l.status === 'draft').length}</div>
+            <div><strong>Submitted:</strong>{supervisorLogs.filter(l => l.status === 'submitted').length}</div>
+            <div><strong>Reviewed:</strong>{supervisorLogs.filter(l => l.status === 'reviewed').length}</div>
+            <div><strong>Approved:</strong>{supervisorLogs.filter(l => l.status === 'approved').length}</div>
+            <div><strong>Average Score:</strong> {
+              (() => {
+                const evaluated = supervisorLogs.filter(l => l.total_score != null);
+                if (evaluated.length === 0) return 'N/A';
+                const avg = evaluated.reduce((sum, l) => sum + l.total_score, 0) / evaluated.length;
+                return avg.toFixed(2);
+              })()
+            }</div>
+          </div>
+        )
+        }
         <h2>Pending Reviews ({pendingLogs.length})</h2>
         {pendingLogs.length === 0 ? (
           <p>No logs to review.</p>
@@ -239,30 +337,55 @@ function App() {
         ) : (
           <ul>
             {reviewedLogs.map(log => (
-              <li key = {log.id}>
+              <li key={log.id}>
                 Week {log.week_number}: {log.activities} - status: <strong>{log.status}</strong>
-              <div> 
-                <textarea placeholder= "Feedback (optional for approved, required for request changes)"
-                  value = {feedback[log.id] || ''}
-                  onChange = {(e) => setFeedback({ ...feedback, [log.id]: e.target.value})}
-                  rows = '2'
-                  style = {{width : '100%', marginTop: '5px'}}
-                />
-                <button onClick = {() => handleSupervisorAction(log.id, 'approved', feedback[log.id] || '')} style = {{marginTop: '5px'}}>
-                  Approve</button>
-                <button onClick = {() => handleSupervisorAction(log.id, 'draft', feedback[log.id] || '')}>
-                  Request Changes</button>
-              </div> 
+                {log.total_score != null && <span> | Score: {log.total_score}</span>}
+
+                {/* Evaluation inputs – one per criteria */}
+                {criteria.map(c => (
+                  <div key={c.id} style={{ marginTop: '4px' }}>
+                    <label>{c.name} ({(c.weight * 100).toFixed(0)}%): </label>
+                    <input
+                      type="number"
+                      placeholder="0-100"
+                      style={{ width: '60px', marginLeft: '5px' }}
+                      onChange={(e) => setFeedback(prev => ({
+                        ...prev,
+                        [`score_${log.id}_${c.id}`]: e.target.value,
+                      }))}
+                    />
+                  </div>
+                ))}
+                <button onClick={() => saveEvaluations(log.id)} style={{ marginTop: '5px' }}>
+                  Save Evaluations
+                </button>
+
+                {/* Existing feedback and action buttons */}
+                <div style={{ marginTop: '8px' }}>
+                  <textarea
+                    placeholder="Feedback (optional for approved, required for request changes)"
+                    value={feedback[log.id] || ''}
+                    onChange={(e) => setFeedback({ ...feedback, [log.id]: e.target.value })}
+                    rows="2"
+                    style={{ width: '100%', marginTop: '5px' }}
+                  />
+                  <button onClick={() => handleSupervisorAction(log.id, 'approved', feedback[log.id] || '')} style={{ marginTop: '5px', marginRight: '5px' }}>
+                    Approve
+                  </button>
+                  <button onClick={() => handleSupervisorAction(log.id, 'draft', feedback[log.id] || '')}>
+                    Request Changes
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
-
         <h2>All Logs</h2>
         <ul>
         {supervisorLogs.map(log => (
           <li key = {log.id}>
             Week {log.week_number}: {log.activities} - <strong>{log.status}</strong>
+            {log.total_score != null && <span> | Score: {log.total_score}</span>}
             {log.feedback && <p><em>Feedback: {log.feedback}</em></p>}
           </li>
         ))}
@@ -275,13 +398,71 @@ function App() {
     if (user.role === 'admin') {
       return (
         <div style =  {{ padding: '20px'}}>
-          <h1>Administrator</h1>
+          <ToastContainer/>
+          <h1>Administrator Dashboard</h1>
+          <p>Welcome, {user.username}!</p>
           <button onClick = {() => {
             localStorage.removeItem('access_token');
             setUser(null);
+            setAdminUsers([]);
+            setAdminLogs([]);
         }}>
           Logout
         </button>
+
+        <h2>All Users</h2>
+        <table border = '1' cellPadding = '8' style = {{ borderCollapse: 'collapse', width: '100%'}}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>
+            {adminUsers.map(u => (
+              <tr key = {u.id}>
+                <td>{u.id}</td>
+                <td>{u.username}</td>
+                <td>{u.role}</td>
+                <td>{u.email}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <h2 style = {{marginTop: '30px' }}>All Logs</h2>
+        {adminLogs.length === 0 ? (
+          <p>No logs available.</p>
+        ) : (
+          <table border = '1' cellPadding = '8' style = {{ borderCollapse: 'collapse', width: '100%'}}>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Student</th>
+                <th>Week</th>
+                <th>Activities</th>
+                <th>Status</th>
+                <th>Total Score</th>
+                <th>Feedback</th>
+              </tr>
+            </thead>
+            <tbody>
+              {adminLogs.map(log => (
+                <tr key = {log.id}>
+                  <td>{log.id}</td>
+                  <td>{log.student}</td>
+                  <td>{log.week_number}</td>
+                  <td>{log.activities}</td>
+                  <td>{log.status}</td>
+                  <td>{log.total_score != null? log.total_score : '-'}</td>
+                  <td>{log.feedback || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     );
     }
@@ -316,5 +497,6 @@ function App() {
      </div>
    );
   }
-   
-export default App;
+  
+
+  export default App;

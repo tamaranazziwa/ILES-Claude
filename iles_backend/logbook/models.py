@@ -18,5 +18,14 @@ class WeeklyLog(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)  # can be blank because it's not submitted yet
     created_at = models.DateTimeField(auto_now_add=True)  # automatically set when created
     feedback = models.TextField(blank = True, default = '')
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields = ['student', 'week_number', 'placement'], 
+                name='unique_weekly_log'
+            )
+        ]#one log per week
+
     def __str__(self):
         return f"Log Week {self.week_number} - {self.student.username}"

@@ -31,7 +31,17 @@ class WeeklyLogViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         #Force student to current user and status to 'draft'
-        serializer.save(student=self.request.user, status='draft')
+        student = self.request.user
+        week_number = serializer.validated_data.get('week_number')
+        placement = serializer.validated_data.get('placement')
+
+        existing = WeeklyLog.objects.filter(student=student,
+                                            placement=placement,
+                                            week_number=week_number,
+                                            ).exists()
+        if existing:
+            raise ValidationError('You already have a log for this week and placement.')
+        serializer.save(student=student, status='draft')
 
     def perform_update(self, serializer):
         instance = self.get_object() #get log being updated
