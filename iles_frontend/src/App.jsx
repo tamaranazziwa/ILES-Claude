@@ -210,13 +210,16 @@ function App() {
     } catch (err) { console.error(err); }
   };
 
-  const fetchAdminData = async () => {
-    try {
-      const [usersRes, logsRes] = await Promise.all([api.get('/users/'), api.get('/logs/')]);
-      setAdminUsers(usersRes.data);
-      setAdminLogs(logsRes.data);
-    } catch (err) { console.error(err); }
-  };
+const fetchAdminData = async () => {
+  try {
+    const [usersRes, logsRes, criteriaRes] = await Promise.all([
+      api.get('/users/'), api.get('/logs/'), api.get('/criteria/'),
+    ]);
+    setAdminUsers(usersRes.data);
+    setAdminLogs(logsRes.data);
+    setCriteria(criteriaRes.data);   // <-- store criteria in state
+  } catch (err) { console.error(err); }
+};
 
   // ── Handlers ──────────────────────────────────────────────────────────
 
@@ -842,6 +845,79 @@ function App() {
             <StatCard label="Approved" value={adminLogs.filter((l) => l.status === 'approved').length} accent="success" />
             <StatCard label="Pending" value={adminLogs.filter((l) => l.status === 'submitted').length} accent="warning" />
           </div>
+
+       
+          <div className="card">
+            <div className="card__header">
+              <h2 className="card__title">Evaluation Criteria</h2>
+              <span className="card__count">{criteria.length}</span>
+            </div>
+            <div className="card__body">
+              {/* Add criteria form */}
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const form = e.target;
+                  const name = form.criteria_name.value.trim();
+                  const weight = parseFloat(form.criteria_weight.value);
+                  if (!name || isNaN(weight)) return toast.error('Please fill name and weight.');
+                  try {
+                    await api.post('/criteria/', { name, weight });
+                    toast.success('Criteria added!');
+                    form.reset();
+                    fetchAdminData();
+                  } catch (err) { toast.error(apiError(err)); }
+                }}
+                style={{ marginBottom: 20 }}
+              >
+                <div className="two-col-form">
+                  <div className="field">
+                    <label className="field__label">Name</label>
+                    <input type="text" name="criteria_name" className="field__input" placeholder="e.g. Technical Skills" required />
+                  </div>
+                  <div className="field">
+                    <label className="field__label">Weight (0 – 1)</label>
+                    <input type="number" name="criteria_weight" className="field__input" placeholder="0.4" step="0.01" min="0" max="1" required />
+                  </div>
+                </div>
+                <button type="submit" className="btn btn--primary btn--sm" style={{ marginTop: 8 }}>Add Criteria</button>
+              </form>
+
+              {criteria.length === 0 ? (
+                <p>No criteria defined yet.</p>
+              ) : (
+                <table className="data-table">
+                  <thead><tr><th>Name</th><th>Weight (%)</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {criteria.map(c => (
+                      <tr key={c.id}>
+                        <td>{c.name}</td>
+                        <td>{(c.weight * 100).toFixed(0)}%</td>
+                        <td>
+                          <button
+                            className="btn btn--danger btn--sm"
+                            onClick={async () => {
+                              if (!window.confirm(`Delete "${c.name}"?`)) return;
+                              try {
+                                await api.delete(`/criteria/${c.id}/`);
+                                toast.success('Criteria deleted.');
+                                fetchAdminData();
+                              } catch (err) { toast.error(apiError(err)); }
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
+<div className="card">
+  <div className="card__header"><h2 className="card__title">All Logs</h2>...
 
           <div className="card">
             <div className="card__header"><h2 className="card__title">All Users</h2><span className="card__count">{adminUsers.length}</span></div>
