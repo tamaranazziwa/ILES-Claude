@@ -77,7 +77,7 @@ WSGI_APPLICATION = 'iles_backend.wsgi.application'
 # Uses dj-database-url to configure; falls back to SQLite for local dev
 DATABASES = {
     'default': dj_database_url.parse(
-        "postgresql://iles_user:IFJWTVvpJFmV4V55JEZoD2BwtZdcFIto@dpg-d7uekehj2pic73bpsjg0-a.oregon-postgres.render.com/iles_db_ayyn")
+        "postgresql://neondb_owner:npg_vHGews28fUNI@ep-late-rain-ahbxprlw.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require")
 }
 
 # Password validation
