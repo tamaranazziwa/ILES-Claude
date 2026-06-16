@@ -828,6 +828,8 @@ const fetchAdminData = async () => {
 
   // ── Admin dashboard ────────────────────────────────────────────────────
 
+  // ── Admin dashboard ────────────────────────────────────────────────────
+
   if (user.role === 'admin') {
     const userMap = Object.fromEntries(adminUsers.map((u) => [u.id, u.username]));
     return (
@@ -846,14 +848,32 @@ const fetchAdminData = async () => {
             <StatCard label="Pending" value={adminLogs.filter((l) => l.status === 'submitted').length} accent="warning" />
           </div>
 
-       
+          {/* ── All Users ──────────────────────────────────────────────── */}
+          <div className="card">
+            <div className="card__header"><h2 className="card__title">All Users</h2><span className="card__count">{adminUsers.length}</span></div>
+            <div className="card__body" style={{ padding: 0, overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Email</th></tr></thead>
+                <tbody>
+                  {adminUsers.map((u) => (
+                    <tr key={u.id}>
+                      <td>{u.id}</td><td>{u.username}</td>
+                      <td><span className={`role-pill role-pill--${u.role}`}>{ROLE_LABELS[u.role] ?? u.role}</span></td>
+                      <td>{u.email || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* ── Evaluation Criteria ────────────────────────────────────── */}
           <div className="card">
             <div className="card__header">
               <h2 className="card__title">Evaluation Criteria</h2>
               <span className="card__count">{criteria.length}</span>
             </div>
             <div className="card__body">
-              {/* Add criteria form */}
               <form
                 onSubmit={async (e) => {
                   e.preventDefault();
@@ -916,27 +936,7 @@ const fetchAdminData = async () => {
             </div>
           </div>
 
-<div className="card">
-  <div className="card__header"><h2 className="card__title">All Logs</h2>...
-
-          <div className="card">
-            <div className="card__header"><h2 className="card__title">All Users</h2><span className="card__count">{adminUsers.length}</span></div>
-            <div className="card__body" style={{ padding: 0, overflowX: 'auto' }}>
-              <table className="data-table">
-                <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Email</th></tr></thead>
-                <tbody>
-                  {adminUsers.map((u) => (
-                    <tr key={u.id}>
-                      <td>{u.id}</td><td>{u.username}</td>
-                      <td><span className={`role-pill role-pill--${u.role}`}>{ROLE_LABELS[u.role] ?? u.role}</span></td>
-                      <td>{u.email || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
+          {/* ── All Logs ───────────────────────────────────────────────── */}
           <div className="card">
             <div className="card__header"><h2 className="card__title">All Logs</h2><span className="card__count">{adminLogs.length}</span></div>
             <div className="card__body" style={{ padding: 0, overflowX: 'auto' }}>
